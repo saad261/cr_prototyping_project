@@ -3,28 +3,36 @@
  * See LICENSE.md in the project root for license terms and full copyright notice.
  *--------------------------------------------------------------------------------------------*/
 
+// Importing styling for the application
 import "./App.scss";
 
+// Importing necessary components and modules
+import { RenderScheduleScriptsWidgetProvider } from "./RenderScheduleScriptsWidget"; // Widget provider for rendering schedule scripts
+import "./RenderScheduleScripts.scss"; // Additional styling for rendering schedule scripts
+import { RenderScheduleScriptsViewSetup } from "./RenderScheduleScriptsViewSetup"; // Setup for rendering schedule scripts view
+import { ShowScheduleScriptsWidgetProvider } from "./ShowScheduleScriptsWidget"; // Widget provider for showing schedule scripts
+
+// Importing necessary types and modules
 import type { ScreenViewport } from "@itwin/core-frontend";
-import { FitViewTool, IModelApp, StandardViewId } from "@itwin/core-frontend";
-import { FillCentered } from "@itwin/core-react";
-import { ProgressLinear } from "@itwin/itwinui-react";
+import { FitViewTool, IModelApp, StandardViewId } from "@itwin/core-frontend"; // Tools for viewing models
+import { FillCentered } from "@itwin/core-react"; // Centered fill component
+import { ProgressLinear } from "@itwin/itwinui-react"; // Linear progress indicator
 import {
   MeasurementActionToolbar,
   MeasureTools,
   MeasureToolsUiItemsProvider,
-} from "@itwin/measure-tools-react";
+} from "@itwin/measure-tools-react"; // Measurement tools and toolbar components
 import {
   AncestorsNavigationControls,
   CopyPropertyTextContextMenuItem,
   PropertyGridManager,
   PropertyGridUiItemsProvider,
   ShowHideNullValuesSettingsMenuItem,
-} from "@itwin/property-grid-react";
+} from "@itwin/property-grid-react"; // Components for property grid and related controls
 import {
   TreeWidget,
   TreeWidgetUiItemsProvider,
-} from "@itwin/tree-widget-react";
+} from "@itwin/tree-widget-react"; // Tree widget and UI items provider components
 import {
   useAccessToken,
   Viewer,
@@ -32,35 +40,48 @@ import {
   ViewerNavigationToolsProvider,
   ViewerPerformance,
   ViewerStatusbarItemsProvider,
-} from "@itwin/web-viewer-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+} from "@itwin/web-viewer-react"; // Viewer and related providers for web-based viewing
+import React, { useCallback, useEffect, useMemo, useState } from "react"; // React imports
 
-import { Auth } from "./Auth";
-import { history } from "./history";
+import { Auth } from "./Auth"; // Authentication module
+import { history } from "./history"; // History module for managing browser history
 
+// Configuration for viewport options
+const viewportOptions = {
+  viewState: RenderScheduleScriptsViewSetup.getDefaultView, // Set default view state for rendering schedule scripts
+  featureOptions: {
+    defaultViewOverlay: {
+      enableScheduleAnimationViewOverlay: true, // Enable animation view overlay for schedule scripts
+    },
+  },
+};
+
+// Main App component
 const App: React.FC = () => {
-  const [iModelId, setIModelId] = useState(process.env.IMJS_IMODEL_ID);
-  const [iTwinId, setITwinId] = useState(process.env.IMJS_ITWIN_ID);
+  const [iModelId, setIModelId] = useState(process.env.IMJS_IMODEL_ID); // State for iModel ID
+  const [iTwinId, setITwinId] = useState(process.env.IMJS_ITWIN_ID); // State for iTwin ID
   const [changesetId, setChangesetId] = useState(
     process.env.IMJS_AUTH_CLIENT_CHANGESET_ID
-  );
+  ); // State for changeset ID
 
-  const accessToken = useAccessToken();
+  const accessToken = useAccessToken(); // Access token for authentication
 
-  const authClient = Auth.getClient();
+  const authClient = Auth.getClient(); // Authentication client
 
+  // Function to handle user login
   const login = useCallback(async () => {
     try {
-      await authClient.signInSilent();
+      await authClient.signInSilent(); // Try silent sign-in
     } catch {
-      await authClient.signIn();
+      await authClient.signIn(); // If silent sign-in fails, perform regular sign-in
     }
   }, [authClient]);
 
   useEffect(() => {
-    void login();
+    void login(); // Perform login on component mount
   }, [login]);
 
+  // Effect to update state based on URL parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has("iTwinId")) {
@@ -74,6 +95,7 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Effect to update URL based on state changes
   useEffect(() => {
     let url = `viewer?iTwinId=${iTwinId}`;
 
@@ -87,13 +109,8 @@ const App: React.FC = () => {
     history.push(url);
   }, [iTwinId, iModelId, changesetId]);
 
-  /** NOTE: This function will execute the "Fit View" tool after the iModel is loaded into the Viewer.
-   * This will provide an "optimal" view of the model. However, it will override any default views that are
-   * stored in the iModel. Delete this function and the prop that it is passed to if you prefer
-   * to honor default views when they are present instead (the Viewer will still apply a similar function to iModels that do not have a default view).
-   */
+  // Function to configure viewport
   const viewConfiguration = useCallback((viewPort: ScreenViewport) => {
-    // default execute the fitview tool and use the iso standard view after tile trees are loaded
     const tileTreesLoaded = () => {
       return new Promise((resolve, reject) => {
         const start = new Date();
@@ -109,7 +126,6 @@ const App: React.FC = () => {
             resolve(true);
           }
           const now = new Date();
-          // after 20 seconds, stop waiting and fit the view
           if (now.getTime() - start.getTime() > 20000) {
             reject();
           }
@@ -123,13 +139,14 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // Viewer creator options
   const viewCreatorOptions = useMemo(
     () => ({ viewportConfigurer: viewConfiguration }),
     [viewConfiguration]
   );
 
+  // Effect to run initialization after iModel app is initialized
   const onIModelAppInit = useCallback(async () => {
-    // iModel now initialized
     await TreeWidget.initialize();
     await PropertyGridManager.initialize();
     await MeasureTools.startup();
@@ -151,17 +168,20 @@ const App: React.FC = () => {
         changeSetId={changesetId}
         authClient={authClient}
         viewCreatorOptions={viewCreatorOptions}
-        enablePerformanceMonitors={true} // see description in the README (https://www.npmjs.com/package/@itwin/web-viewer-react)
+        enablePerformanceMonitors={true} // Enable performance monitors
         onIModelAppInit={onIModelAppInit}
+        viewportOptions={viewportOptions}
         uiProviders={[
-          new ViewerNavigationToolsProvider(),
+          new ShowScheduleScriptsWidgetProvider(), // Widget provider for showing schedule scripts
+          new RenderScheduleScriptsWidgetProvider(), // Widget provider for rendering schedule scripts
+          new ViewerNavigationToolsProvider(), // Provider for viewer navigation tools
           new ViewerContentToolsProvider({
             vertical: {
               measureGroup: false,
             },
-          }),
-          new ViewerStatusbarItemsProvider(),
-          new TreeWidgetUiItemsProvider(),
+          }), // Provider for viewer content tools
+          new ViewerStatusbarItemsProvider(), // Provider for viewer status bar items
+          new TreeWidgetUiItemsProvider(), // Provider for tree widget UI items
           new PropertyGridUiItemsProvider({
             propertyGridProps: {
               autoExpandChildCategories: true,
@@ -180,8 +200,8 @@ const App: React.FC = () => {
                 ),
               ],
             },
-          }),
-          new MeasureToolsUiItemsProvider(),
+          }), // Provider for property grid UI items
+          new MeasureToolsUiItemsProvider(), // Provider for measure tools UI items
         ]}
       />
     </div>
